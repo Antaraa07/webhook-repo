@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Action Feed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #0056b3;
+        }
+        #actions-list {
+            margin-top: 20px;
+        }
+        .action-item {
+            background-color: #e9ecef;
+            border-left: 5px solid #007bff;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .action-item p {
+            margin: 0;
+            line-height: 1.5;
+        }
+        .action-item strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GitHub Repository Activity Feed</h1>
+        <div id="actions-list">
+            Loading activities...
+        </div>
+    </div>
+
+    <script>
+        // This URL needs to point to an API endpoint that can query your MongoDB
+        // For simplicity, we'll extend our Flask app to serve this data.
+        // In a real application, you might have a separate backend service for the UI.
+        const API_ENDPOINT = '/webhook/api/actions'; 
+
+        async function fetchAndDisplayActions() {
+            try {
+                const response = await fetch(API_ENDPOINT);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const actions = await response.json();
+                const actionsListDiv = document.getElementById('actions-list');
+                actionsListDiv.innerHTML = ''; // Clear previous data
+
+                if (actions.length === 0) {
+                    actionsListDiv.innerHTML = '<p>No activities found yet. Perform some GitHub actions!</p>';
+                    return;
+                }
+
+                actions.forEach(action => {
+                    const actionItem = document.createElement('div');
+                    actionItem.classList.add('action-item');
+
+                    let displayText = '';
+                    // Format: {author} pushed to {to_branch} on {timestamp}
+                    // Format: {author} submitted a pull request from {from_branch} to {to_branch} on {timestamp}
+                    // Format: {author} merged branch {from_branch} to {to_branch} on {timestamp}
+
+                    const timestamp = new Date(action.timestamp).toLocaleString(); // Convert to local time string
+
+                    if (action.action === 'PUSH') {
+                        displayText = `<strong>${action.author}</strong> pushed to <strong>${action.to_branch}</strong> on ${timestamp}`;
+                    } else if (action.action === 'PULL_REQUEST') {
+                        displayText = `<strong>${action.author}</strong> submitted a pull request from <strong>${action.from_branch}</strong> to <strong>${action.to_branch}</strong> on ${timestamp}`;
+                    } else if (action.action === 'MERGE') {
+                        displayText = `<strong>${action.author}</strong> merged branch <strong>${action.from_branch}</strong> to <strong>${action.to_branch}</strong> on ${timestamp}`;
+                    }
+
+                    actionItem.innerHTML = `<p>${displayText}</p>`;
+                    actionsListDiv.appendChild(actionItem);
+                });
+            } catch (error) {
+                console.error("Error fetching actions:", error);
+                document.getElementById('actions-list').innerHTML = '<p style="color: red;">Error loading activities. Please check the server.</p>';
+            }
+        }
+
+        // Fetch data initially and then every 15 seconds
+        fetchAndDisplayActions();
+        setInterval(fetchAndDisplayActions, 15000); // Poll every 15 seconds
+    </script>
+</body>
+</html>
